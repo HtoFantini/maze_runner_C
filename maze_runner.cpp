@@ -1,9 +1,12 @@
 #include <iostream>
 #include <fstream>
+#include <istream>
+#include <stdio.h>
 #include <vector>
 #include <stack>
-#include <thread>
+// #include <thread>
 #include <chrono>
+
 
 // Representação do labirinto
 using Maze = std::vector<std::vector<char>>;
@@ -20,40 +23,85 @@ int num_rows;
 int num_cols;
 std::stack<Position> valid_positions;
 
-// Função para carregar o labirinto de um arquivo
-Position load_maze(const std::string& file_name) {
-    // TODO: Implemente esta função seguindo estes passos:
-    // 1. Abra o arquivo especificado por file_name usando std::ifstream
-    // 2. Leia o número de linhas e colunas do labirinto
-    // 3. Redimensione a matriz 'maze' de acordo (use maze.resize())
-    // 4. Leia o conteúdo do labirinto do arquivo, caractere por caractere
-    // 5. Encontre e retorne a posição inicial ('e')
-    // 6. Trate possíveis erros (arquivo não encontrado, formato inválido, etc.)
-    // 7. Feche o arquivo após a leitura
+
+std::ifstream openFile(const std::string& fileName) {
+    std::ifstream file(fileName);
+    if (!file) {
+        std::cerr << "Error: Couldn't open file" << std::endl;
+    }
+    return file;
+}
+
+bool readDimensions(std::ifstream& file) {
+    file >> num_rows >> num_cols;
+
+    if (num_rows <= 0 || num_cols <= 0) {
+        std::cerr << "Error: Invalid file size" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+bool searchStart(std::ifstream& file, Position& start) {
+    maze.resize(num_rows, std::vector<char>(num_cols));
+    char ch;
+    bool found_start = false;
+
+    for (int i = 0; i < num_rows; ++i) {
+        for (int j = 0; j < num_cols; ++j) {
+            file >> ch;
+            maze[i][j] = ch;
+
+            if (ch == 'e') {
+                start = {i, j};
+                found_start = true;
+                return found_start;
+            }
+        }
+    }
     
-    return {-1, -1}; // Placeholder - substitua pelo valor correto
+    std::cerr << "Error: Start position 'e' not found in the maze." << std::endl;
+    return found_start;
 }
 
-// Função para imprimir o labirinto
-void print_maze() {
-    // TODO: Implemente esta função
-    // 1. Percorra a matriz 'maze' usando um loop aninhado
-    // 2. Imprima cada caractere usando std::cout
-    // 3. Adicione uma quebra de linha (std::cout << '\n') ao final de cada linha do labirinto
+Position loadMaze(const std::string& fileName) {
+    std::ifstream file = openFile(fileName);
+    if (!file) return {-1, -1};
+
+    if (!readDimensions(file)) return {-1, -1};
+
+    Position start = {-1, -1};
+
+    bool found_start = searchStart(file, start);
+
+    file.close();
+
+    if (!found_start) return {-1, -1};
+
+    return start; 
 }
 
-// Função para verificar se uma posição é válida
-bool is_valid_position(int row, int col) {
-    // TODO: Implemente esta função
-    // 1. Verifique se a posição está dentro dos limites do labirinto
-    //    (row >= 0 && row < num_rows && col >= 0 && col < num_cols)
-    // 2. Verifique se a posição é um caminho válido (maze[row][col] == 'x')
-    // 3. Retorne true se ambas as condições forem verdadeiras, false caso contrário
-
-    return false; // Placeholder - substitua pela lógica correta
+void printMaze() {
+    for (int i = 0; i < num_rows; ++i) {
+        for (int j = 0; j < num_cols; ++j) {
+            std::cout << maze[i][j];
+        }
+        std::cout << '\n';
+    }
 }
 
-// Função principal para navegar pelo labirinto
+bool isValidPosition(const Position& pos) {
+    if (pos.row < 0 || pos.row >= num_rows || pos.col < 0 || pos.col >= num_cols) {
+        return false;
+    }
+
+    if (maze[pos.row][pos.col] == 'x') {
+        return true;
+    }
+
+    return false;
+}
+
 bool walk(Position pos) {
     // TODO: Implemente a lógica de navegação aqui
     // 1. Marque a posição atual como visitada (maze[pos.row][pos.col] = '.')
@@ -74,28 +122,62 @@ bool walk(Position pos) {
     return false; // Placeholder - substitua pela lógica correta
 }
 
-int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cerr << "Uso: " << argv[0] << " <arquivo_labirinto>" << std::endl;
+
+int main() {
+    std::string file_name = "data/maze.txt"; // Nome do arquivo do labirinto
+
+    Position start = loadMaze(file_name);
+    if (start.row == -1) {
+        std::cerr << "Erro ao carregar o labirinto!\n";
         return 1;
     }
 
-    Position initial_pos = load_maze(argv[1]);
-    if (initial_pos.row == -1 || initial_pos.col == -1) {
-        std::cerr << "Posição inicial não encontrada no labirinto." << std::endl;
-        return 1;
-    }
+    std::cout << num_cols << num_cols << std::endl;
 
-    bool exit_found = walk(initial_pos);
+    std::cout << "Labirinto carregado com sucesso!\n";
+    printMaze();
 
-    if (exit_found) {
-        std::cout << "Saída encontrada!" << std::endl;
-    } else {
-        std::cout << "Não foi possível encontrar a saída." << std::endl;
-    }
+    // Testando a função isValidPosition
+    std::cout << "\nTestando posições válidas:\n";
+
+    Position test1 = {1, 2};
+    Position test2 = {0, 0};
+    Position test3 = {3, 2};
+
+    std::cout << "Posição (" << test1.row << ", " << test1.col << ") é "
+              << (isValidPosition(test1) ? "válida!\n" : "inválida!\n");
+
+    std::cout << "Posição (" << test2.row << ", " << test2.col << ") é "
+              << (isValidPosition(test2) ? "válida!\n" : "inválida!\n");
+
+    std::cout << "Posição (" << test3.row << ", " << test3.col << ") é "
+              << (isValidPosition(test3) ? "válida!\n" : "inválida!\n");
 
     return 0;
 }
+
+// int main(int argc, char* argv[]) {
+//     if (argc != 2) {
+//         std::cerr << "Uso: " << argv[0] << " <arquivo_labirinto>" << std::endl;
+//         return 1;
+//     }
+
+//     Position initial_pos = loadMaze(argv[1]);
+//     if (initial_pos.row == -1 || initial_pos.col == -1) {
+//         std::cerr << "Posição inicial não encontrada no labirinto." << std::endl;
+//         return 1;
+//     }
+
+//     bool exit_found = walk(initial_pos);
+
+//     if (exit_found) {
+//         std::cout << "Saída encontrada!" << std::endl;
+//     } else {
+//         std::cout << "Não foi possível encontrar a saída." << std::endl;
+//     }
+
+//     return 0;
+// }
 
 // Nota sobre o uso de std::this_thread::sleep_for:
 // 
