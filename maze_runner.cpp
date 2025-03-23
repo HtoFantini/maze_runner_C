@@ -35,6 +35,8 @@ std::ifstream openFile(const std::string& fileName) {
 bool readDimensions(std::ifstream& file) {
     file >> num_rows >> num_cols;
 
+    std::cout << num_rows << " " << num_cols << std::endl;
+
     if (num_rows <= 0 || num_cols <= 0) {
         std::cerr << "Error: Invalid file size" << std::endl;
         return false;
@@ -42,52 +44,49 @@ bool readDimensions(std::ifstream& file) {
     return true;
 }
 
-bool searchStart(std::ifstream& file, Position& start) {
-    maze.resize(num_rows, std::vector<char>(num_cols));
-    char ch;
-    bool found_start = false;
 
-    for (int i = 0; i < num_rows; ++i) {
-        for (int j = 0; j < num_cols; ++j) {
-            file >> ch;
-            maze[i][j] = ch;
+void readMaze(std::ifstream& file) {
+    std::string line;
+    maze.clear();
 
-            if (ch == 'e') {
-                start = {i, j};
-                found_start = true;
-                return found_start;
-            }
-        }
+    std::getline(file, line);
+
+    while (std::getline(file, line)) {  
+        maze.push_back(std::vector<char>(line.begin(), line.end()));
     }
-    
-    std::cerr << "Error: Start position 'e' not found in the maze." << std::endl;
-    return found_start;
-}
-
-Position loadMaze(const std::string& fileName) {
-    std::ifstream file = openFile(fileName);
-    if (!file) return {-1, -1};
-
-    if (!readDimensions(file)) return {-1, -1};
-
-    Position start = {-1, -1};
-
-    bool found_start = searchStart(file, start);
-
-    file.close();
-
-    if (!found_start) return {-1, -1};
-
-    return start; 
 }
 
 void printMaze() {
-    for (int i = 0; i < num_rows; ++i) {
-        for (int j = 0; j < num_cols; ++j) {
-            std::cout << maze[i][j];
+    for (const auto& row : maze) {   
+        for (char cell : row) {      
+            std::cout << cell;
         }
-        std::cout << '\n';
+        std::cout << '\n';  
     }
+}
+
+Position searchEntry() {
+    for(int row=0; row < num_rows; row++) {
+        for(int col=0; col < num_cols; col++) {
+            if(maze[row][col] == 'e') {
+                return {row,col};
+            }
+        }
+    }
+    std::cerr << "Entry not found" << std::endl;
+    return {-1,-1};
+}
+
+Position searchExit() {
+    for(int row=0; row < num_rows; row++) {
+        for(int col=0; col < num_cols; col++) {
+            if(maze[row][col] == 's') {
+                return {row,col};
+            }
+        }
+    }
+    std::cerr << "Exit not found" << std::endl;
+    return {-1,-1};
 }
 
 bool isValidPosition(const Position& pos) {
@@ -126,35 +125,48 @@ bool walk(Position pos) {
 int main() {
     std::string file_name = "data/maze.txt"; // Nome do arquivo do labirinto
 
-    Position start = loadMaze(file_name);
-    if (start.row == -1) {
-        std::cerr << "Erro ao carregar o labirinto!\n";
-        return 1;
-    }
+    // Abre o arquivo
+    std::ifstream file = openFile(file_name);
+    if (!file) return -1;
 
-    std::cout << num_cols << num_cols << std::endl;
-
-    std::cout << "Labirinto carregado com sucesso!\n";
+    // Le suas dimenoes e armazena em num_rows e num_cols
+    readDimensions(file);
+    // Le e armazena todo o labirinto em maze
+    readMaze(file);
+    // Printa maze
     printMaze();
 
-    // Testando a função isValidPosition
-    std::cout << "\nTestando posições válidas:\n";
+    // Verificando se a leitura esta pulando a primeira linha do arquivo
+    printf("Maze first line: ");
+    std::cout << std::string(maze[0].begin(), maze[0].end()) << std::endl;
+    
+    // Procurando a entrada
+    Position start = {-1,-1};
+    start = searchEntry();
+    std::cout << start.row << " " << start.col << std::endl;
 
-    Position test1 = {1, 2};
-    Position test2 = {0, 0};
-    Position test3 = {3, 2};
+    // Procurando a saida
+    Position exit = {-1,-1};
+    exit = searchExit();
+    std::cout << exit.row << " " << exit.col << std::endl;
 
-    std::cout << "Posição (" << test1.row << ", " << test1.col << ") é "
-              << (isValidPosition(test1) ? "válida!\n" : "inválida!\n");
-
-    std::cout << "Posição (" << test2.row << ", " << test2.col << ") é "
-              << (isValidPosition(test2) ? "válida!\n" : "inválida!\n");
-
-    std::cout << "Posição (" << test3.row << ", " << test3.col << ") é "
-              << (isValidPosition(test3) ? "válida!\n" : "inválida!\n");
+    
+    ////////// Testando isValidPosition() /////////////
+    Position valid1 = {1,6};
+    Position invalid1 = {-1,-1};
+    Position valid2 = {0,0};
+    Position invalid2 = {num_rows,num_cols};
+    
+    std::cout << isValidPosition(valid1) << std::endl;
+    std::cout << isValidPosition(invalid1) << std::endl;
+    std::cout << isValidPosition(valid2) << std::endl;
+    std::cout << isValidPosition(invalid2) << std::endl;
+    ////////////////////////////////////////////////////
 
     return 0;
 }
+
+// FUNCAO MAIN FEITA PELO PROFESSOR
 
 // int main(int argc, char* argv[]) {
 //     if (argc != 2) {
