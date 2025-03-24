@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <vector>
 #include <stack>
-// #include <thread>
+#include <thread>
 #include <chrono>
 
 
@@ -35,7 +35,7 @@ std::ifstream openFile(const std::string& fileName) {
 bool readDimensions(std::ifstream& file) {
     file >> num_rows >> num_cols;
 
-    std::cout << num_rows << " " << num_cols << std::endl;
+    //std::cout << num_rows << " " << num_cols << std::endl;
 
     if (num_rows <= 0 || num_cols <= 0) {
         std::cerr << "Error: Invalid file size" << std::endl;
@@ -94,14 +94,106 @@ bool isValidPosition(const Position& pos) {
         return false;
     }
 
-    if (maze[pos.row][pos.col] == 'x') {
+    if (maze[pos.row][pos.col] == 'x' || maze[pos.row][pos.col] == 's') {
         return true;
     }
 
     return false;
 }
 
-bool walk(Position pos) {
+
+
+bool isWalkPossible (Position pos, int direction){
+
+    Position clone = pos;
+
+    switch (direction){
+
+        case 0:
+            clone.col=clone.col+1;
+            if(isValidPosition(clone)){
+
+                if (maze[pos.row][pos.col+1] == 'x' || maze[pos.row][pos.col+1] == 's')
+                return true;
+                return false;
+
+            }
+            return false;
+        break;
+
+
+        case 1:
+            clone.col=clone.col-1;
+            if(isValidPosition(clone)){
+
+                if (maze[pos.row][pos.col-1] == 'x' || maze[pos.row][pos.col-1] == 's')
+                return true;
+                return false;
+
+            }
+            return false;
+        break;
+                
+        case 2:
+            clone.row=clone.row-1;
+            if(isValidPosition(clone)){
+
+                if (maze[pos.row-1][pos.col] == 'x' || maze[pos.row-1][pos.col] == 's')
+                return true;
+                return false;
+
+            }
+            return false;
+        break;
+
+        case 3:
+            clone.row=clone.row+1;
+            if(isValidPosition(clone)){
+
+                if (maze[pos.row+1][pos.col] == 'x' || maze[pos.row+1][pos.col] == 's')
+                return true;
+                return false;
+
+            }
+            return false;
+        break;
+
+        default:
+            return false;
+        break;
+
+    }
+
+}
+
+
+std::vector<int> validMoves(Position pos){
+
+    // por definicao, a ordem eh: direita, esquerda, cima, baixo. 
+    std::vector<int> vetor= {0, 0, 0, 0}; // Inicializa e retorna o vetor
+    Position clone = pos;
+
+    for (int i=0; i<4;i++)
+    vetor [i] = isWalkPossible(pos,i);
+
+    return vetor;
+    
+
+}
+
+// verifica se chegou no final
+bool win (Position pos, Position exit){
+
+    if (pos.row == exit.row && pos.col==exit.col){
+    printf("\nYou Won!\n");
+    return true;
+    }
+    
+    return false;
+}
+
+
+bool walk(Position pos, Position exit) {
     // TODO: Implemente a lógica de navegação aqui
     // 1. Marque a posição atual como visitada (maze[pos.row][pos.col] = '.')
     // 2. Chame print_maze() para mostrar o estado atual do labirinto
@@ -118,7 +210,62 @@ bool walk(Position pos) {
     //    c. Se walk retornar true, propague o retorno (retorne true)
     // 7. Se todas as posições foram exploradas sem encontrar a saída, retorne false
     
-    return false; // Placeholder - substitua pela lógica correta
+    // enquanto ainda não venceu
+    while (!win(pos, exit)){
+        maze[pos.row][pos.col] == 'o';
+
+        std::vector<int> vetor = validMoves(pos);
+        int direcao = 4;
+        for (int i = 0; i < 4; i++) {
+            if (vetor[i]==1){
+
+                direcao=i;
+                break;
+
+            }
+            
+        }
+
+
+        switch (direcao){
+
+            case 0:
+                maze[pos.row][pos.col] = '.';
+                pos.col=pos.col+1;
+            break;
+    
+    
+            case 1:
+                maze[pos.row][pos.col] = '.';
+                pos.col=pos.col-1;
+            break;
+                    
+            case 2:
+                maze[pos.row][pos.col] = '.';
+                pos.row=pos.row-1;
+            break;
+    
+            case 3:
+                maze[pos.row][pos.col] = '.';
+                pos.row=pos.row+1;
+            break;
+    
+            default:
+            break;
+    
+        }
+        //printf("\n\n row %d, col %d \n\n", pos.row, pos.col);
+        maze[pos.row][pos.col] = 'o';
+        printMaze();
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+
+    }
+    maze[pos.row][pos.col]= '.';
+    maze[exit.row][exit.col]='o';
+    //printf("\nYou won!\n");
+
+    return true;
 }
 
 
@@ -134,35 +281,37 @@ int main() {
     // Le e armazena todo o labirinto em maze
     readMaze(file);
     // Printa maze
-    printMaze();
+    //printMaze();
 
     // Verificando se a leitura esta pulando a primeira linha do arquivo
-    printf("Maze first line: ");
-    std::cout << std::string(maze[0].begin(), maze[0].end()) << std::endl;
+    //printf("Maze first line: ");
+    //std::cout << std::string(maze[0].begin(), maze[0].end()) << std::endl;
     
     // Procurando a entrada
     Position start = {-1,-1};
     start = searchEntry();
-    std::cout << start.row << " " << start.col << std::endl;
+    //std::cout << start.row << " " << start.col << std::endl;
 
     // Procurando a saida
     Position exit = {-1,-1};
     exit = searchExit();
-    std::cout << exit.row << " " << exit.col << std::endl;
+    //std::cout << exit.row << " " << exit.col << std::endl;
 
     
     ////////// Testando isValidPosition() /////////////
-    Position valid1 = {1,6};
-    Position invalid1 = {-1,-1};
-    Position valid2 = {0,0};
-    Position invalid2 = {num_rows,num_cols};
+   // Position valid1 = {1,6};
+    //Position invalid1 = {-1,-1};
+    //Position valid2 = {0,0};
+    //Position invalid2 = {num_rows,num_cols};
     
-    std::cout << isValidPosition(valid1) << std::endl;
-    std::cout << isValidPosition(invalid1) << std::endl;
-    std::cout << isValidPosition(valid2) << std::endl;
-    std::cout << isValidPosition(invalid2) << std::endl;
+    //std::cout << isValidPosition(valid1) << std::endl;
+    //std::cout << isValidPosition(invalid1) << std::endl;
+    //std::cout << isValidPosition(valid2) << std::endl;
+    //std::cout << isValidPosition(invalid2) << std::endl;
     ////////////////////////////////////////////////////
+/**/
 
+    walk(start, exit);
     return 0;
 }
 
