@@ -123,7 +123,7 @@ bool isWalkPossible (Position pos, int direction){
     Position clone = pos;
 
     switch (direction){
-        
+
         case 0:
             clone.col=clone.col+1;
             if(isValidPosition(clone)){
@@ -221,12 +221,13 @@ bool walk(Position start, Position exit){
     while(!route.empty()) {
         Position pos = route.top();
 
-
+        // Verifica se chegou ao final
         if(win(pos, exit)){
             maze[exit.row][exit.col] = 'o';
             won = true;
         }
 
+        // Limpa o terminal e printa o labirinto
         system("clear");
         printMaze();
 
@@ -237,6 +238,7 @@ bool walk(Position start, Position exit){
 
         std::this_thread::sleep_for(std::chrono::milliseconds(LOOP_SLEEP_MS));
 
+        // Obtem quais sao os mivmentos possiveis a partir da posicao atual
         std::vector<int> moves = validMoves(pos);
         bool moved = false;
 
@@ -244,6 +246,7 @@ bool walk(Position start, Position exit){
             if(moves[i]) {
                 Position new_position = pos; 
             
+                // Verifica qual direcao e valida
                 switch(i) {
                     case 0:
                         new_position.col += 1;
@@ -262,6 +265,7 @@ bool walk(Position start, Position exit){
                         break;
                 }
                 
+                // Movimenta para a nova posicao e marca o local ja percorrido
                 if(maze[new_position.row][new_position.col] != '.') {
                     maze[new_position.row][new_position.col] = 'o';
                     maze[pos.row][pos.col] = '.';
@@ -274,6 +278,7 @@ bool walk(Position start, Position exit){
 
         }
 
+        // Se nao pode mover, volta ate o ultimo ponto com movimentos validos
         if(!moved) {
             maze[pos.row][pos.col] = '.';
             route.pop();
@@ -288,7 +293,7 @@ bool walk(Position start, Position exit){
 
 int main() {
     // Caminho para o arquivo do labirinto que deseja-se ler
-    std::string file_name = "data/maze3.txt"; 
+    std::string file_name = "data/maze6.txt"; 
 
     // Abre o arquivo
     std::ifstream file = openFile(file_name);
