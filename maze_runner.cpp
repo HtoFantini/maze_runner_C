@@ -8,19 +8,19 @@
 #include <mutex>
 #include <atomic>
 
-// Constante de atualização do labirinto
+// Constante de atualizacao do labirinto
 #define LOOP_SLEEP_MS 30
 
 // Representação do labirinto
 using Maze = std::vector<std::vector<char>>;
 
-// Estrutura para representar uma posição no labirinto
+// Estrutura para representar uma posicao no labirinto
 struct Position {
     int row;
     int col;
 };
 
-// Variáveis globais
+// Variaveis globais
 Maze maze;
 int num_rows;
 int num_cols;
@@ -31,18 +31,18 @@ std::atomic<bool> won{false};
 std::ifstream openFile(const std::string& fileName) {
     std::ifstream file(fileName);
     if (!file) {
-        std::cerr << "Erro: Não foi possível abrir o arquivo." << std::endl;
+        std::cerr << "Error: Could not open the file." << std::endl;
     }
     return file;
 }
 
-// Lê as dimensões do labirinto
+// Le as dimensões do labirinto
 bool readDimensions(std::ifstream& file) {
     file >> num_rows >> num_cols;
     return (num_rows > 0 && num_cols > 0);
 }
 
-// Lê e carrega o labirinto do arquivo
+// Le e carrega o labirinto do arquivo
 void readMaze(std::ifstream& file) {
     std::string line;
     maze.clear();
@@ -76,7 +76,7 @@ Position searchEntry() {
     return {-1, -1};
 }
 
-// Procura a saída do labirinto
+// Procura a saida do labirinto
 Position searchExit() {
     for (int row = 0; row < num_rows; row++) {
         for (int col = 0; col < num_cols; col++) {
@@ -88,15 +88,15 @@ Position searchExit() {
     return {-1, -1};
 }
 
-// Verifica se a posição é válida
+// Verifica se a posicao e válida
 bool isValidPosition(const Position& pos) {
     return (pos.row >= 0 && pos.row < num_rows && pos.col >= 0 && pos.col < num_cols &&
             (maze[pos.row][pos.col] == 'x' || maze[pos.row][pos.col] == 's'));
 }
 
-// Retorna os movimentos válidos
+// Retorna os movimentos validos
 std::vector<int> validMoves(Position pos) {
-    std::vector<int> moves = {0, 0, 0, 0};  // Direções: direita, esquerda, cima, baixo
+    std::vector<int> moves = {0, 0, 0, 0};
     Position directions[4] = {
         {pos.row, pos.col + 1}, // Direita
         {pos.row, pos.col - 1}, // Esquerda
@@ -111,7 +111,7 @@ std::vector<int> validMoves(Position pos) {
     return moves;
 }
 
-// Retorna a nova posição com base na direção
+// Retorna a nova posicao com base na direção
 Position getNewPosition(Position pos, int direction) {
     switch (direction) {
         case 0: pos.col += 1; break;  // Direita
@@ -122,7 +122,7 @@ Position getNewPosition(Position pos, int direction) {
     return pos;
 }
 
-// Verifica se a posição é a saida
+// Verifica se a posicao e a saida
 bool isExit(Position pos, Position exit) {
     return (pos.row == exit.row && pos.col == exit.col);
 }
@@ -139,7 +139,7 @@ bool processMovement(Position& pos, Position new_pos, std::stack<Position>& rout
     return false;
 }
 
-// Função que move o jogador pelo labirinto
+// Move o jogador pelo labirinto
 void walk(Position pos, Position exit, std::stack<Position> route) {
     while (!route.empty() && !won) {
         pos = route.top();
@@ -210,7 +210,7 @@ void walk(Position pos, Position exit, std::stack<Position> route) {
     }
 }
 
-// Função que inicia o jogo
+// Inicia o jogo
 void start_maze_runner(Position start, Position exit) {
     std::stack<Position> route;
     route.push(start);
