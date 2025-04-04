@@ -7,10 +7,11 @@
 #include <thread>
 #include <chrono>
 #include <cstdlib>
-
+#include <mutex>
+#include <atomic>
 
 // Constante de atualizacao do labirinto
-#define LOOP_SLEEP_MS 15
+#define LOOP_SLEEP_MS 30
 
 
 // Representação do labirinto
@@ -27,7 +28,10 @@ Maze maze;
 int num_rows;
 int num_cols;
 std::stack<Position> valid_positions;
-
+std::mutex walk_mutex;
+std::mutex print_mutex;
+std::mutex won_mutex;
+std::atomic<bool> won{false};
 
 // Abre o arquivo
 std::ifstream openFile(const std::string& fileName) {
@@ -66,6 +70,9 @@ void readMaze(std::ifstream& file) {
 
 // Printa o labirinto
 void printMaze() {
+    // Trava o lock para printar na tela
+    std::lock_guard<std::mutex> lock(print_mutex);
+    system("clear");
     for (const auto& row : maze) {   
         for (char cell : row) {      
             std::cout << cell;
@@ -118,7 +125,7 @@ bool isValidPosition(const Position& pos) {
 
 
 // Verifica se ele pode ocupar a proxima casa
-bool isWalkPossible (Position pos, int direction){
+bool isWalkPossible (Position pos, int direction) {
 
     Position clone = pos;
 
@@ -126,7 +133,7 @@ bool isWalkPossible (Position pos, int direction){
 
         case 0:
             clone.col=clone.col+1;
-            if(isValidPosition(clone)){
+            if(isValidPosition(clone)) {
 
                 if (maze[pos.row][pos.col+1] == 'x' || maze[pos.row][pos.col+1] == 's')
                 return true;
@@ -138,7 +145,7 @@ bool isWalkPossible (Position pos, int direction){
 
         case 1:
             clone.col=clone.col-1;
-            if(isValidPosition(clone)){
+            if(isValidPosition(clone)) {
 
                 if (maze[pos.row][pos.col-1] == 'x' || maze[pos.row][pos.col-1] == 's')
                 return true;
@@ -150,7 +157,7 @@ bool isWalkPossible (Position pos, int direction){
 
         case 2:
             clone.row=clone.row-1;
-            if(isValidPosition(clone)){
+            if(isValidPosition(clone)) {
 
                 if (maze[pos.row-1][pos.col] == 'x' || maze[pos.row-1][pos.col] == 's')
                 return true;
@@ -162,7 +169,7 @@ bool isWalkPossible (Position pos, int direction){
 
         case 3:
             clone.row=clone.row+1;
-            if(isValidPosition(clone)){
+            if(isValidPosition(clone)) {
 
                 if (maze[pos.row+1][pos.col] == 'x' || maze[pos.row+1][pos.col] == 's')
                 return true;
@@ -182,7 +189,7 @@ bool isWalkPossible (Position pos, int direction){
 
 
 // Retorna os movimentos validos
-std::vector<int> validMoves(Position pos){
+std::vector<int> validMoves(Position pos) {
 
     // Por definicao, a ordem eh: direita, esquerda, cima, baixo. 
     std::vector<int> vetor= {0, 0, 0, 0};
@@ -197,103 +204,141 @@ std::vector<int> validMoves(Position pos){
 }
 
 
-// Verifica se chegou no final
-bool win (Position pos, Position exit){
+bool win(Position pos, Position exit) {
+    return (pos.row == exit.row && pos.col == exit.col);
+}
 
-    if (pos.row == exit.row && pos.col==exit.col){
-    printf("\nYou Won!\n");
-    return true;
+Position getNewPosition(Position pos, int direction) {
+    Position new_pos = pos;
+    switch(direction) {
+        case 0: new_pos.col += 1; break;
+        case 1: new_pos.col -= 1; break;
+        case 2: new_pos.row -= 1; break;
+        case 3: new_pos.row += 1; break;
     }
-    
+    return new_pos;
+}
+
+bool processMovement(Position& pos, Position new_pos, std::stack<Position>& route, bool is_exit) {
+    if(maze[new_pos.row][new_pos.col] != '.') {
+        std::lock_guard<std::mutex> lock(walk_mutex);
+        if(is_exit) {
+            maze[new_pos.row][new_pos.col] = 'o';
+        } else {
+            maze[new_pos.row][new_pos.col] = '.';
+        }
+        maze[pos.row][pos.col] = '.'; 
+        route.push(new_pos);
+        return true;
+    }
     return false;
 }
 
+void walk(Position current_pos, Position exit, std::stack<Position> route) {
 
-// Inicia o processo andar pelo labirinto ate achar a saida
-bool walk(Position start, Position exit){
-
-    bool won = false;
-    // Stack com caminho percorrido
-    std::stack<Position> route;
-    route.push(start);
-    maze[start.row][start.col] = 'o';
-
-    while(!route.empty()) {
+    while(!route.empty() && !won) {
         Position pos = route.top();
 
-        // Verifica se chegou ao final
-        if(win(pos, exit)){
-            maze[exit.row][exit.col] = 'o';
-            won = true;
+        if (win(pos,exit)) {
+            std::lock_guard<std::mutex> won_lock(won_mutex);
+                {
+                    std::lock_guard<std::mutex> maze_lock(walk_mutex);
+                    maze[exit.row][exit.col] = 'o';
+                }
+            printMaze();
+            std::cout << "\nYou Won!\n";
+            return;
         }
 
-        // Limpa o terminal e printa o labirinto
-        system("clear");
-        printMaze();
-
-        if(won) {
-            std::cout << "You escaped!" << std::endl;
-            return true;
+        {
+            std::lock_guard<std::mutex> lock(walk_mutex);
+            printMaze();
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(LOOP_SLEEP_MS));
-
-        // Obtem quais sao os mivmentos possiveis a partir da posicao atual
         std::vector<int> moves = validMoves(pos);
         bool moved = false;
 
-        for(size_t i = 0; i < moves.size(); i++) {
+        int valid_paths = 0;
+        for (size_t i=0; i < moves.size(); i++) {
             if(moves[i]) {
-                Position new_position = pos; 
-            
-                // Verifica qual direcao e valida
-                switch(i) {
-                    case 0:
-                        new_position.col += 1;
-                        break;
-                    case 1:
-                        new_position.col -= 1;
-                        break;
-                    case 2:
-                        new_position.row -= 1;
-                        break;
-                    case 3:
-                        new_position.row += 1;
-                        break;
-                    default:
-                        std::cout << "Invalid move vector size" << std::endl;
-                        break;
-                }
-                
-                // Movimenta para a nova posicao e marca o local ja percorrido
-                if(maze[new_position.row][new_position.col] != '.') {
-                    maze[new_position.row][new_position.col] = 'o';
-                    maze[pos.row][pos.col] = '.';
-                    route.push(new_position);
-                    moved = true;
-                    break;
-                }
-
+                valid_paths++;
             }
-
         }
 
-        // Se nao pode mover, volta ate o ultimo ponto com movimentos validos
-        if(!moved) {
-            maze[pos.row][pos.col] = '.';
-            route.pop();
+        if (valid_paths > 0) {
+            moved = false;
+            
+            for (size_t i = 0; i < moves.size(); i++) {
+                if (moves[i] && !won) {
+                    Position new_pos = getNewPosition(pos, i);
+                    
+                    if (valid_paths == 1) {
+                        if (processMovement(pos, new_pos, route, win(new_pos, exit))) {
+                            moved = true;
+                            break;
+                        }
+                    } 
+                    else {
+                        if (maze[new_pos.row][new_pos.col] != '.') {
+                            if (processMovement(pos, new_pos, route, win(new_pos, exit))) {
+                                moved = true;
+                                // Cria threads para caminhos extras
+                                for (size_t j = i + 1; j < moves.size(); j++) {
+                                    if (moves[j] && !won) {
+                                        Position alt_pos = getNewPosition(pos, j);
+                                        if (maze[alt_pos.row][alt_pos.col] != '.') {
+                                            std::stack<Position> new_route = route;
+                                            {
+                                                std::lock_guard<std::mutex> lock(walk_mutex);
+                                                maze[alt_pos.row][alt_pos.col] = 'o';
+                                                maze[pos.row][pos.col] = '.';
+                                            }
+                                            new_route.push(alt_pos);
+                                            std::thread(walk, alt_pos, exit, new_route).detach();
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        
+            if(!moved) {
+                std::lock_guard<std::mutex> lock(walk_mutex);
+                maze[pos.row][pos.col] = '.';
+                route.pop();
+            }
         }
 
+        std::this_thread::sleep_for(std::chrono::milliseconds(LOOP_SLEEP_MS));
     }
+}
 
-    std::cerr << "Could not find the exit." << std::endl;
-    return false;
+// Inicia o processo andar pelo labirinto ate achar a saida
+void start_maze_runner(Position start, Position exit) {
+
+    std::stack<Position> route;
+    route.push(start);
+    
+    {
+        std::lock_guard<std::mutex> lock(walk_mutex);
+        maze[start.row][start.col] = 'o';
+    }
+    
+    walk(start, exit, route);
+    
+    if(!won) {
+        std::lock_guard<std::mutex> lock(print_mutex);
+        std::cerr << "Could not find the exit." << std::endl;
+    }
 }
 
 
 int main() {
     // Caminho para o arquivo do labirinto que deseja-se ler
-    std::string file_name = "data/maze6.txt"; 
+    std::string file_name = "data/maze.txt"; 
 
     // Abre o arquivo
     std::ifstream file = openFile(file_name);
@@ -304,32 +349,17 @@ int main() {
     readMaze(file);
     
     // Procurando a entrada
-    Position start = {-1,-1};
-    start = searchEntry();
+    Position start = searchEntry();
+    if(start.row == -1 || start.col == -1) return -1;
 
     // Procurando a saida
-    Position exit = {-1,-1};
-    exit = searchExit();
+    Position exit = searchExit();
+    if(exit.row == -1 || exit.col == -1) return -1;
 
     // Inicia o andar do personagem
-    walk(start, exit);
-    return 0;
+    start_maze_runner(start, exit);
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    
+    return 1;
 }
-
-
-// Nota sobre o uso de std::this_thread::sleep_for:
-// 
-// A função std::this_thread::sleep_for é parte da biblioteca <thread> do C++11 e posteriores.
-// Ela permite que você pause a execução do thread atual por um período especificado.
-// 
-// Para usar std::this_thread::sleep_for, você precisa:
-// 1. Incluir as bibliotecas <thread> e <chrono>
-// 2. Usar o namespace std::chrono para as unidades de tempo
-// 
-// Exemplo de uso:
-// std::this_thread::sleep_for(std::chrono::milliseconds(50));
-// 
-// Isso pausará a execução por 50 milissegundos.
-// 
-// Você pode ajustar o tempo de pausa conforme necessário para uma melhor visualização
-// do processo de exploração do labirinto.
