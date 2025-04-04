@@ -8,17 +8,21 @@
 #include <mutex>
 #include <atomic>
 
+
 // Constante de atualizacao do labirinto
 #define LOOP_SLEEP_MS 30
 
+
 // Representação do labirinto
 using Maze = std::vector<std::vector<char>>;
+
 
 // Estrutura para representar uma posicao no labirinto
 struct Position {
     int row;
     int col;
 };
+
 
 // Variaveis globais
 Maze maze;
@@ -28,6 +32,7 @@ std::mutex walk_mutex;
 std::mutex print_mutex;
 std::atomic<bool> won{false};
 
+
 std::ifstream openFile(const std::string& fileName) {
     std::ifstream file(fileName);
     if (!file) {
@@ -36,11 +41,13 @@ std::ifstream openFile(const std::string& fileName) {
     return file;
 }
 
+
 // Le as dimensões do labirinto
 bool readDimensions(std::ifstream& file) {
     file >> num_rows >> num_cols;
     return (num_rows > 0 && num_cols > 0);
 }
+
 
 // Le e carrega o labirinto do arquivo
 void readMaze(std::ifstream& file) {
@@ -51,6 +58,7 @@ void readMaze(std::ifstream& file) {
         maze.push_back(std::vector<char>(line.begin(), line.end()));
     }
 }
+
 
 // Imprime o labirinto
 void printMaze() {
@@ -64,6 +72,7 @@ void printMaze() {
     }
 }
 
+
 // Procura a entrada do labirinto
 Position searchEntry() {
     for (int row = 0; row < num_rows; row++) {
@@ -75,6 +84,7 @@ Position searchEntry() {
     }
     return {-1, -1};
 }
+
 
 // Procura a saida do labirinto
 Position searchExit() {
@@ -88,11 +98,13 @@ Position searchExit() {
     return {-1, -1};
 }
 
+
 // Verifica se a posicao e válida
 bool isValidPosition(const Position& pos) {
     return (pos.row >= 0 && pos.row < num_rows && pos.col >= 0 && pos.col < num_cols &&
             (maze[pos.row][pos.col] == 'x' || maze[pos.row][pos.col] == 's'));
 }
+
 
 // Retorna os movimentos validos
 std::vector<int> validMoves(Position pos) {
@@ -111,6 +123,7 @@ std::vector<int> validMoves(Position pos) {
     return moves;
 }
 
+
 // Retorna a nova posicao com base na direção
 Position getNewPosition(Position pos, int direction) {
     switch (direction) {
@@ -122,10 +135,12 @@ Position getNewPosition(Position pos, int direction) {
     return pos;
 }
 
+
 // Verifica se a posicao e a saida
 bool isExit(Position pos, Position exit) {
     return (pos.row == exit.row && pos.col == exit.col);
 }
+
 
 // Processa o movimento do personagem
 bool processMovement(Position& pos, Position new_pos, std::stack<Position>& route) {
@@ -138,6 +153,7 @@ bool processMovement(Position& pos, Position new_pos, std::stack<Position>& rout
     }
     return false;
 }
+
 
 // Move o jogador pelo labirinto
 void walk(Position pos, Position exit, std::stack<Position> route) {
@@ -210,6 +226,7 @@ void walk(Position pos, Position exit, std::stack<Position> route) {
     }
 }
 
+
 // Inicia o jogo
 void start_maze_runner(Position start, Position exit) {
     std::stack<Position> route;
@@ -242,12 +259,9 @@ int main() {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-    if(won) {
-        std::cout << "\nYou Won!\n";
-    }
-    if (!won) {
-        std::cerr << "\nCould not find the exit\n" << std::endl;
-    }
+    if(won) std::cout << "\nYou Won!\n";
+
+    if (!won) std::cerr << "\nCould not find the exit\n" << std::endl;
 
     return 0;
 }
